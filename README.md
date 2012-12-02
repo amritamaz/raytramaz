@@ -1,6 +1,8 @@
 raytramaz
 =========
 
+![A physically incorrect Newton's Cradle made in Raytra](http://i.imgur.com/AIe0M.gif)
+
 A raytracer from scratch in C++. Developed for COMS 4160 - Computer Graphics
 
 ### features:
