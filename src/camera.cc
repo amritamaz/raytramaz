@@ -225,22 +225,22 @@ void Camera::renderScene(std::vector<Surface *> surfaces,
 }
 
 Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_type, Light lite, std::vector<Light *> lights, std::vector<Surface *> surfaces){
-        
-        Rgb zero_rgb = Rgb();
-        Rgb current_rgb = Rgb();
+    
+    Rgb zero_rgb = Rgb();
+    Rgb current_rgb = Rgb();
     Rgb shadow_col = Rgb();
-        zero_rgb.r = 0;
-        zero_rgb.g = 0;
-        zero_rgb.b = 0;
-        current_rgb.r = 0;
-        current_rgb.g = 0;
-        current_rgb.b = 0;
-        
-        //recursion limit met
-        if (recurse_limit == 0){
-            return zero_rgb;
-        }
-        
+    zero_rgb.r = 0;
+    zero_rgb.g = 0;
+    zero_rgb.b = 0;
+    current_rgb.r = 0;
+    current_rgb.g = 0;
+    current_rgb.b = 0;
+    
+    //recursion limit met
+    if (recurse_limit == 0){
+        return zero_rgb;
+    }
+    
     //shadow ray
     if (ray_type == 1){ // SHADOW RAY
         
@@ -260,224 +260,229 @@ Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_
         }
         
         Rgb literr = Rgb((lights.front())->r, (lights.front())->g, (lights.front())->b);
-        
         return literr;
         
     }
     
+    
+    
+    // normal ray-scene intersection
+    // get closest intersection with scene, if none return 0 0 0
+    Surface hitSurface = *surfaces[0];
+    bool isHit = false;
+    myVector surfNorm;
+    for(std::vector<Surface *>::iterator s_it = surfaces.begin();
+        s_it != surfaces.end(); ++s_it){
+        Surface *surf = *s_it;
         
-        
-        // normal ray-scene intersection
-        // get closest intersection with scene, if none return 0 0 0
-        Surface hitSurface = *surfaces[0];
-        bool isHit = false;
-        myVector surfNorm;
-        for(std::vector<Surface *>::iterator s_it = surfaces.begin();
-            s_it != surfaces.end(); ++s_it){
-            Surface *surf = *s_it;
-            
-            Intersection curr = surf->getIntersection(in_ray);
-            if (curr.isIntersected) {
-                if (curr.t < max_t){
-                    if (curr.t > .00001){
-                        max_t = curr.t;
-                        hitSurface = *surf;
-                        isHit = true;
-                        surfNorm = curr.geomNorm;
-                        surfNorm.normalize();
-                    }
+        Intersection curr = surf->getIntersection(in_ray);
+        if (curr.isIntersected) {
+            if (curr.t < max_t){
+                if (curr.t > .00001){
+                    max_t = curr.t;
+                    hitSurface = *surf;
+                    isHit = true;
+                    surfNorm = curr.geomNorm;
+                    surfNorm.normalize();
                 }
             }
         }
+    }
+    
+    
+    //no intersection
+    if (!isHit){
+        return zero_rgb;
+    }
+    
+    float kdr = hitSurface.matInfo.dr;
+    float kdg = hitSurface.matInfo.dg;
+    float kdb = hitSurface.matInfo.db;
+    float ksr = hitSurface.matInfo.sr;
+    float ksg = hitSurface.matInfo.sg;
+    float ksb = hitSurface.matInfo.sb;
+    
+    float inters_x = (in_ray.origin).x + ((in_ray.direction).x)*(max_t - .0001);
+    float inters_y = (in_ray.origin).y + ((in_ray.direction).y)*(max_t- .0001);
+    float inters_z = (in_ray.origin).z + ((in_ray.direction).z)*(max_t- .0001);
+    Point intersP = Point(inters_x,inters_y,inters_z);
+    
+    //iterate over lights
+    for(std::vector<Light *>::iterator l_it = lights.begin();
+        l_it != lights.end(); ++l_it){
+        Light *cur_lite = *l_it;
         
+        Point lightSource;
+        myVector lightvect;
+        Ray s_ray;
+        float t_light;
+        int zero = int(0);
+        bool inShadow = false;
         
-        //no intersection
-        if (!isHit){
-            return zero_rgb;
-        }
+        // first check for shadows
         
-        float kdr = hitSurface.matInfo.dr;
-        float kdg = hitSurface.matInfo.dg;
-        float kdb = hitSurface.matInfo.db;
-        float ksr = hitSurface.matInfo.sr;
-        float ksg = hitSurface.matInfo.sg;
-        float ksb = hitSurface.matInfo.sb;
-        
-        float inters_x = (in_ray.origin).x + ((in_ray.direction).x)*(max_t - .0001);
-        float inters_y = (in_ray.origin).y + ((in_ray.direction).y)*(max_t- .0001);
-        float inters_z = (in_ray.origin).z + ((in_ray.direction).z)*(max_t- .0001);
-        Point intersP = Point(inters_x,inters_y,inters_z);
-        
-        //iterate over lights
-        for(std::vector<Light *>::iterator l_it = lights.begin();
-            l_it != lights.end(); ++l_it){
-            Light *cur_lite = *l_it;
+        if (cur_lite->type != 4){
             
-            Point lightSource;
-            myVector lightvect;
-            Ray s_ray;
-            float t_light;
-            int zero = int(0);
-            bool inShadow = false;
+            lightSource = Point(cur_lite->x, cur_lite->y, cur_lite->z);
+            lightvect = myVector(lightSource, intersP);
+            lightvect.normalize();
             
-            // first check for shadows
+            // check for shadows
+            s_ray = Ray(intersP, lightvect);
             
+            t_light = (lightSource.x - (s_ray.origin).x)/((s_ray.direction).x);
             
-            if (cur_lite->type == 4){
-                // if there's one shadow, you have to split up the area light
-                // and manually sample
-                if (shadowsamps == 1){
-                    Point light_orig = Point(cur_lite->x, cur_lite->y, cur_lite->z);
-                    float lit_len = cur_lite->length;
-                    myVector li_u = cur_lite->uVec;
-                    myVector li_v = cur_lite->litVec;
-                    
-                    Rgb curr_shad = Rgb(0,0,0);
-                    lightSource = light_orig;
-                    
-                    for (int i = 0; i < raysamps; i++){
-                        for (int j = 0; j < raysamps; j++){
-                            double ru = i/raysamps;
-                            double rv = j/raysamps;
-                            
-                            
-                            lightSource.x = light_orig.x + (ru - .5)*(li_u.x)*lit_len + (rv - .5)*(li_v.x)*lit_len;
-                            lightSource.y = light_orig.y + (ru - .5)*(li_u.y)*lit_len + (rv - .5)*(li_v.y)*lit_len;
-                            lightSource.z = light_orig.z + (ru - .5)*(li_u.z)*lit_len + (rv - .5)*(li_v.z)*lit_len;
-                            
-                            lightvect = myVector(lightSource, intersP);
-                            lightvect.normalize();
-                            
-                            Ray shadRay = Ray(intersP, lightvect);
-                            
-                            t_light = (lightSource.x - (shadRay.origin).x)/((shadRay.direction).x);
-                            
-                            Rgb temp = L(shadRay, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces);
-                            
-                            if ((temp.r == 0) && (temp.g == 0) && (temp.b == 0)){
-                                inShadow = true;
-                            }
-                            else {
-                                float surf_light_ang = fmax(dot(surfNorm, lightvect),zero);
-                                float lightdir_surfdir = fmax(dot(li_v, -1*lightvect),zero);
-                                float distance = dist2(intersP, lightSource);
-                                
-                                curr_shad = curr_shad + temp*surf_light_ang*(lightdir_surfdir/distance);
-                            }
-                            
-                            
-                        }
-                    }
-                    
-                    if ((curr_shad.r == 0) && (curr_shad.g == 0) && (curr_shad.b == 0)){
-                        inShadow = true;
-                    }
-                    
-                    shadow_col.r = (float) ((float) curr_shad.r)/(float)shadsampsqrd;
-                    shadow_col.g = (curr_shad.g)/shadsampsqrd;
-                    shadow_col.b = (curr_shad.b)/shadsampsqrd;
-                    
-                }
-                // otherwise
-                else {
-                    Point light_orig = Point(cur_lite->x, cur_lite->y, cur_lite->z);
-                    float lit_len = cur_lite->length;
-                    myVector li_u = cur_lite->uVec;
-                    myVector li_v = cur_lite->litVec;
-                    
-                    Rgb curr_shad = Rgb(0,0,0);
-                    lightSource = light_orig;
-                    
-                    for (int i = 0; i < shadowsamps; i++){
-                        for (int j = 0; j < shadowsamps; j++){
-                            double ru = ((double) rand() / (RAND_MAX));
-                            double rv = ((double) rand() / (RAND_MAX));
-                            
-                            
-                            lightSource.x = light_orig.x + (ru - .5)*(li_u.x)*lit_len + (rv - .5)*(li_v.x)*lit_len;
-                            lightSource.y = light_orig.y + (ru - .5)*(li_u.y)*lit_len + (rv - .5)*(li_v.y)*lit_len;
-                            lightSource.z = light_orig.z + (ru - .5)*(li_u.z)*lit_len + (rv - .5)*(li_v.z)*lit_len;
-                            
-                            lightvect = myVector(lightSource, intersP);
-                            lightvect.normalize();
-                            
-                            Ray shadRay = Ray(intersP, lightvect);
-                            
-                            t_light = (lightSource.x - (shadRay.origin).x)/((shadRay.direction).x);
-                            
-                            Rgb temp = L(shadRay, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces);
-                            
-                            if ((temp.r == 0) && (temp.g == 0) && (temp.b == 0)){
-                                inShadow = true;
-                            }
-                            else {
-                                float surf_light_ang = fmax(dot(surfNorm, lightvect),zero);
-                                float lightdir_surfdir = fmax(dot(li_v, -1*lightvect),zero);
-                            float distance = dist2(intersP, lightSource);
-//                                curr_shad = curr_shad + temp*surf_light_ang*(lightdir_surfdir);
-                                
-                            curr_shad = curr_shad + temp*surf_light_ang*(lightdir_surfdir/distance);
-                            }
-                            
-                            
-                        }
-                    }
-                    
-                    if ((curr_shad.r == 0) && (curr_shad.g == 0) && (curr_shad.b == 0)){
-                        inShadow = true;
-                    }
-                    
-                    shadow_col.r = (float) ((float) curr_shad.r)/(float)shadsampsqrd;
-                    shadow_col.g = (curr_shad.g)/shadsampsqrd;
-                    shadow_col.b = (curr_shad.b)/shadsampsqrd;
-                    
-                    
-                }
-                
-                
+            shadow_col = L(s_ray, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces);
+            
+            if ((shadow_col.r == 0) && (shadow_col.g == 0) && (shadow_col.b == 0)){
+                inShadow = true;
             }
             
-            //not an area light
-            else {
+        }
+        
+        //if area light, soft shadows
+        else {
+            
+            float lit_len = cur_lite->length;
+            myVector li_u = cur_lite->uVec;
+            myVector li_v = cur_lite->litVec;
+            
+            for (int i = 0; i < shadowsamps; i++){
                 
-                if (cur_lite->type != 3){
-                    lightSource = Point(cur_lite->x, cur_lite->y, cur_lite->z);
-                    lightvect = myVector(lightSource, intersP);
+                double ru = ((double) rand() / (RAND_MAX));
+                double rv = ((double) rand() / (RAND_MAX));
+                
+                lightSource = Point(cur_lite->x, cur_lite->y, cur_lite->z);
+                
+                Point liteSrc = lightSource + (cur_lite->uVec)*lit_len*(ru-.5) + (cur_lite->litVec)*lit_len*(rv-.5);
+                
+                lightvect = myVector(liteSrc, intersP);
+                lightvect.normalize();
+                
+                // check for shadows
+                s_ray = Ray(intersP, lightvect);
+                
+                t_light = (liteSrc.x - (s_ray.origin).x)/((s_ray.direction).x);
+                
+                Rgb temp_shadcol = Rgb();
+                
+                temp_shadcol = L(s_ray, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces);
+                
+                if ((temp_shadcol.r == 0)
+                    && (temp_shadcol.g == 0) && (temp_shadcol.b == 0)){
+                    inShadow = true;
+                }
+                
+                shadow_col = shadow_col + temp_shadcol;
+            }
+            
+            shadow_col.r = (shadow_col.r/shadowsamps)/(cur_lite->r);
+            shadow_col.g = shadow_col.g/shadowsamps/(cur_lite->g);
+            shadow_col.b = shadow_col.b/shadowsamps/(cur_lite->b);
+            
+        }
+        
+        
+        // if not in shadow, compute specular, etc etc
+        
+        float cur_r = 0;
+        float cur_g = 0;
+        float cur_b = 0;
+        
+        //compute lighting as normal
+        switch((int) cur_lite->type){
+            case 1: {  // point light source
+                surfNorm.normalize();
+                float dotprod = dot(surfNorm, lightvect);
+                float angle = fmax(zero,dotprod);
+                float invdistsq = 1/(dist2(intersP, lightSource));
+                cur_r += invdistsq*kdr*angle*(cur_lite->r);
+                cur_g += invdistsq*kdg*angle*(cur_lite->g);
+                cur_b += invdistsq*kdb*angle*(cur_lite->b);
+                
+                
+                // phong part
+                myVector vplusl = (-1*(in_ray.direction)) + lightvect;
+                float lengthof = vplusl.length();
+                myVector bisect = vplusl/lengthof;
+                bisect.normalize();
+                
+                dotprod = dot(surfNorm, bisect);
+                angle = fmax(zero,dotprod);
+                float exp = hitSurface.matInfo.r;
+                float angle_phong = pow(angle, exp);
+                cur_r += ksr*angle_phong;
+                cur_g += ksg*angle_phong;
+                cur_b += ksb*angle_phong;
+                
+            }
+                break;
+            case 2: { //directional
+                
+            }
+                break;
+            case 3: { //ambient
+                cur_r += (cur_lite->r)*kdr;
+                cur_b += (cur_lite->b)*kdb;
+                cur_g += (cur_lite->g)*kdg;
+            }
+                break;
+                
+            case 4: { // area light
+                      // get a sample like a point source
+                
+                surfNorm.normalize();
+                float lit_len = cur_lite->length;
+                myVector li_u = cur_lite->uVec;
+                myVector li_v = cur_lite->litVec;
+                Rgb temp;
+                
+                if (raysamps == 1){
+                    
+                    double ru = ((double) rand() / (RAND_MAX));
+                    double rv = ((double) rand() / (RAND_MAX));
+                    
+                    Point liteSrc = lightSource + (cur_lite->uVec)*lit_len*(ru-.5) + (cur_lite->litVec)*lit_len*(rv-.5);
+                    lightvect = myVector(liteSrc, intersP);
                     lightvect.normalize();
                     
-                    // check for shadows
-                    s_ray = Ray(intersP, lightvect);
+                    float dotprod = dot(surfNorm, lightvect);
+                    float angle = fmax(zero,dotprod);
+                    float invdistsq = 1/(dist2(intersP, lightSource));
+                    cur_r += invdistsq*kdr*angle*(cur_lite->r);
+                    cur_g += invdistsq*kdg*angle*(cur_lite->g);
+                    cur_b += invdistsq*kdb*angle*(cur_lite->b);
                     
-                    t_light = (lightSource.x - (s_ray.origin).x)/((s_ray.direction).x);
+                    // phong part
+                    myVector vplusl = (-1*(in_ray.direction)) + lightvect;
+                    float lengthof = vplusl.length();
+                    myVector bisect = vplusl/lengthof;
+                    bisect.normalize();
                     
-                    shadow_col = L(s_ray, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces);
-                    if ((shadow_col.r == 0) && (shadow_col.g == 0) && (shadow_col.b == 0)){
-                        inShadow = true;
-                    }
+                    dotprod = dot(surfNorm, bisect);
+                    angle = fmax(zero,dotprod);
+                    float exp = hitSurface.matInfo.r;
+                    float angle_phong = pow(angle, exp);
+                    cur_r += ksr*angle_phong;
+                    cur_g += ksg*angle_phong;
+                    cur_b += ksb*angle_phong;
+                    
                 }
-                
-            }
-            
-            // if not in shadow, compute specular, etc etc
-                
-                float cur_r = 0;
-                float cur_g = 0;
-                float cur_b = 0;
-                
-                //compute lighting as normal
-                switch((int) cur_lite->type){
-                    case 1: {  // point light source
-                        int zero = int(0);
-                        surfNorm.normalize();
-                        myVector lightvect = myVector(lightSource, intersP);
+                else {
+                    for (int i = 0; i < raysamps; i++){
+                        double ru = ((double) rand() / (RAND_MAX));
+                        double rv = ((double) rand() / (RAND_MAX));
+                        
+                        Point liteSrc = lightSource + (cur_lite->uVec)*lit_len*(ru-.5) + (cur_lite->litVec)*lit_len*(rv-.5);
+                        lightvect = myVector(liteSrc, intersP);
                         lightvect.normalize();
+                        
                         float dotprod = dot(surfNorm, lightvect);
                         float angle = fmax(zero,dotprod);
                         float invdistsq = 1/(dist2(intersP, lightSource));
                         cur_r += invdistsq*kdr*angle*(cur_lite->r);
                         cur_g += invdistsq*kdg*angle*(cur_lite->g);
                         cur_b += invdistsq*kdb*angle*(cur_lite->b);
-                        
                         
                         // phong part
                         myVector vplusl = (-1*(in_ray.direction)) + lightvect;
@@ -492,177 +497,66 @@ Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_
                         cur_r += ksr*angle_phong;
                         cur_g += ksg*angle_phong;
                         cur_b += ksb*angle_phong;
-                        
-                        
-                        
                     }
-                        break;
-                    case 2: { //directional
-                        
-                    }
-                        break;
-                    case 3: { //ambient
-                        cur_r += (cur_lite->r)*kdr;
-                        cur_b += (cur_lite->b)*kdb;
-                        cur_g += (cur_lite->g)*kdg;
-                    }
-                        break;
-                        
-                    case 4: { // area light
-                              // get a sample like a point source
-                        
-                        int zero = int(0);
-                        surfNorm.normalize();
-                        
-                        int x = cur_lite->length;
-                        int samp_num = x/3;
-                        
-                        
-                        Point light_orig = Point(cur_lite->x, cur_lite->y, cur_lite->z);
-                        float lit_len = cur_lite->length;
-                        myVector li_u = cur_lite->uVec;
-                        myVector li_v = cur_lite->litVec;
-                        Rgb temp;
-                        
-                        if (raysamps == 1){
-                            surfNorm.normalize();
-                            lightSource = Point(cur_lite->x, cur_lite->y, cur_lite->z);
-                            myVector lightvect = myVector(lightSource, intersP);
-                            lightvect.normalize();
-                            float dotprod = dot(surfNorm, lightvect);
-                            float angle = fmax(zero,dotprod);
-                            float distance = dist2(intersP, lightSource);
-                            cur_r += kdr*angle*(cur_lite->r);
-                            cur_g += kdg*angle*(cur_lite->g);
-                            cur_b += kdb*angle*(cur_lite->b);
-                            
-                            // phong part
-                            myVector vplusl = (-1*(in_ray.direction)) + lightvect;
-                            float lengthof = vplusl.length();
-                            myVector bisect = vplusl/lengthof;
-                            bisect.normalize();
-                            
-                            dotprod = dot(surfNorm, bisect);
-                            angle = fmax(zero,dotprod);
-                            float exp = hitSurface.matInfo.r;
-                            float angle_phong = pow(angle, exp);
-                            cur_r += ksr*angle_phong;
-                            cur_g += ksg*angle_phong;
-                            cur_b += ksb*angle_phong;
-                            
-
-                    cur_r = cur_r/distance;
-                    cur_g = cur_g/distance;
-                    cur_b = cur_b/distance;
-                            
-                        }
-                        
-                        else {
-                            
-                            for (int i = 0; i < samp_num; i++){
-                                
-                                temp = Rgb(0,0,0);
-                                
-                                double ru = ((double) rand() / (RAND_MAX));
-                                double rv = ((double) rand() / (RAND_MAX));
-                                
-                                lightSource.x = light_orig.x + (ru - .5)*(li_u.x)*lit_len + (rv - .5)*(li_v.x)*lit_len;
-                                lightSource.y = light_orig.y + (ru - .5)*(li_u.y)*lit_len + (rv - .5)*(li_v.y)*lit_len;
-                                lightSource.z = light_orig.z + (ru - .5)*(li_u.z)*lit_len + (rv - .5)*(li_v.z)*lit_len;
-                                
-                                
-                                myVector lightvect = myVector(lightSource, intersP);
-                                lightvect.normalize();
-                                float dotprod = dot(surfNorm, lightvect);
-                                float angle = fmax(zero,dotprod);
-                                float invdistsq = 1/(dist2(intersP, lightSource));
-                                temp.r += invdistsq*kdr*angle*(cur_lite->r);
-                                temp.g += invdistsq*kdg*angle*(cur_lite->g);
-                                temp.b += invdistsq*kdb*angle*(cur_lite->b);
-                                
-                                
-                                // phong part
-                                myVector vplusl = (-1*(in_ray.direction)) + lightvect;
-                                float lengthof = vplusl.length();
-                                myVector bisect = vplusl/lengthof;
-                                bisect.normalize();
-                                
-                                dotprod = dot(surfNorm, bisect);
-                                angle = fmax(zero,dotprod);
-                                float exp = hitSurface.matInfo.r;
-                                float angle_phong = pow(angle, exp);
-                                temp.r += ksr*angle_phong;
-                                temp.g += ksg*angle_phong;
-                                temp.b += ksb*angle_phong;
-                                
-                                float surf_light_ang = fmax(dot(surfNorm, lightvect),zero);
-                                float lightdir_surfdir = fmax(dot((cur_lite->litVec), -1*lightvect),zero);
-                                
-                        temp = temp*surf_light_ang*(lightdir_surfdir);
-//                                temp = temp*surf_light_ang*(lightdir_surfdir);
-                                
-                                
-                            }
-                            
-                            cur_r = (temp.r/samp_num);
-                            cur_g = (temp.g/samp_num);
-                            cur_b = (temp.b/samp_num);
-                            
-                        }
-                        
-                    }
-                        break;
-
+                    
+                    cur_r = cur_r/raysamps;
+                    cur_g = cur_g/raysamps;
+                    cur_b = cur_b/raysamps;
                 }
                 
-                current_rgb.r += cur_r;
-                current_rgb.g += cur_g;
-                current_rgb.b += cur_b;
-            
-            
-            if (!inShadow){
-                current_rgb.r += cur_r;
-                current_rgb.g += cur_g;
-                current_rgb.b += cur_b;
             }
-            
-            else {
-                current_rgb.r = cur_r*(shadow_col.r);
-                current_rgb.g = cur_g*(shadow_col.g);
-                current_rgb.b = cur_b*(shadow_col.b);
-            }
-            
+                break;
+                
         }
         
-        // if material has no reflectivity
-        if ((hitSurface.matInfo.ir == 0)
-            && (hitSurface.matInfo.ig == 0)
-            && (hitSurface.matInfo.ib == 0)){
-            return current_rgb;
+        //        current_rgb.r += cur_r;
+        //        current_rgb.g += cur_g;
+        //        current_rgb.b += cur_b;
+        
+        
+        if (!inShadow){
+            current_rgb.r += cur_r;
+            current_rgb.g += cur_g;
+            current_rgb.b += cur_b;
         }
+        
         else {
-            Ray ref_ray;
-            myVector d = in_ray.direction; // is this right?
-            float d_dot_n = dot(d, surfNorm);
-            float twoxddn = 2*d_dot_n;
-            myVector two_ddn_n = twoxddn*surfNorm;
-            myVector refl_direction = d - two_ddn_n;
-            
-            ref_ray = Ray(intersP, refl_direction);
-            //compute reflected ray
-            Rgb reflect_rgb = L(ref_ray, .0001, INFINITY, recurse_limit - 1, 0, lite, lights, surfaces);
-            Rgb final_rgb = Rgb();
-            final_rgb.r = current_rgb.r + (hitSurface.matInfo.ir)*(reflect_rgb.r);
-            final_rgb.g = current_rgb.g + (hitSurface.matInfo.ig)*(reflect_rgb.g);
-            final_rgb.b = current_rgb.b + (hitSurface.matInfo.ib)*(reflect_rgb.b);
-            
-            
-            return final_rgb;
+            current_rgb.r = cur_r*(shadow_col.r);
+            current_rgb.g = cur_g*(shadow_col.g);
+            current_rgb.b = cur_b*(shadow_col.b);
         }
-        
-        return zero_rgb;
         
     }
+    
+    // if material has no reflectivity
+    if ((hitSurface.matInfo.ir == 0)
+        && (hitSurface.matInfo.ig == 0)
+        && (hitSurface.matInfo.ib == 0)){
+        return current_rgb;
+    }
+    else {
+        Ray ref_ray;
+        myVector d = in_ray.direction; // is this right?
+        float d_dot_n = dot(d, surfNorm);
+        float twoxddn = 2*d_dot_n;
+        myVector two_ddn_n = twoxddn*surfNorm;
+        myVector refl_direction = d - two_ddn_n;
+        
+        ref_ray = Ray(intersP, refl_direction);
+        //compute reflected ray
+        Rgb reflect_rgb = L(ref_ray, .0001, INFINITY, recurse_limit - 1, 0, lite, lights, surfaces);
+        Rgb final_rgb = Rgb();
+        final_rgb.r = current_rgb.r + (hitSurface.matInfo.ir)*(reflect_rgb.r);
+        final_rgb.g = current_rgb.g + (hitSurface.matInfo.ig)*(reflect_rgb.g);
+        final_rgb.b = current_rgb.b + (hitSurface.matInfo.ib)*(reflect_rgb.b);
+        
+        
+        return final_rgb;
+    }
+    
+    return zero_rgb;
+    
+}
 
 
 void Camera::writeImage(char* filename, const Imf::Rgba *pixels){

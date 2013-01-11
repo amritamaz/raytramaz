@@ -10,7 +10,9 @@
 // default constructor
 
 Rgb::Rgb()
-{}
+{r = 0;
+    g = 0;
+    b = 0;}
 
 
 // constructor from args
