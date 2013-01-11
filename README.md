@@ -6,7 +6,8 @@ raytramaz
 A raytracer from scratch in C++. Developed for COMS 4160 - Computer Graphics
 
 ### features:
-+ monte carlo raytracing of spheres, triangles, and planes
++ monte carlo raytracing 
++ spheres, triangles, and planes
 + point, ambient, and area lights
 + reflection and shadow
 
@@ -23,15 +24,5 @@ A raytracer from scratch in C++. Developed for COMS 4160 - Computer Graphics
 ### upcoming:
 + speed improvements
 + refraction
-+ directional light
-
-### timeline:
-week 5: monte-carlo methods, area lighting
-
-week 4: reflection
-
-week 3: triangles, planes, and shadows
-
-week 2: basic surface shading
-
-week 1: simple raytracing of spheres
++ batch rendering scripts
++ path tracing (!!)
