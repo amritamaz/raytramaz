@@ -37,4 +37,4 @@ A raytracer from scratch in C++. A continuation of the raytracer project develop
     g++ -O2 *.cc -I. -I/usr/include/OpenEXR -lIlmImf -lImath -lHalf -Wall -o raytra
 
 ### how to run:
-  raytra scenefile.txt output.exr [numsamples] [numshadowrays] [usebboxes]
+  raytra scenefile.txt output.exr [numsamples] [numshadowrays] [showbboxes]
