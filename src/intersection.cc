@@ -12,7 +12,7 @@ Intersection::Intersection(){
     isIntersected = false;
     t = 0;
     geomNorm = myVector();
-
+    
 }
 
 Intersection::Intersection(bool i, float t1, myVector vec){
@@ -25,7 +25,7 @@ Intersection::Intersection(const Intersection& inter){
     isIntersected = inter.isIntersected;
     t = inter.t;
     geomNorm = inter.geomNorm;
-
+    
 }// copy constructor
 
 Intersection::~Intersection(){}									// destructor
@@ -39,5 +39,5 @@ Intersection& Intersection::operator= (const Intersection& rhs){
     geomNorm = rhs.geomNorm;
     geomNorm.normalize();
 	return (*this);
-
+    
 }// assignment operator

@@ -15,27 +15,39 @@ Triangle::Triangle(Point p1, Point p2, Point p3){
     p_a = p1;
     p_b = p2;
     p_c = p3;
+    
 }
 
 // constructor
 Triangle::Triangle(const Triangle& tri)
 :p_a(tri.p_a), p_b(tri.p_b), p_c(tri.p_c), normal(tri.normal)
-{  
+{
 }// copy constructor
 
 
 Triangle::~Triangle(){}											// destructor
 
-Intersection Triangle::getIntersection(const Ray& myRay){
+Intersection Triangle::getIntersection(const Ray& myRay, bool withBbox){
+    
+    if (withBbox && hasBbox){
+        Intersection bboxInters = bounds.getIntersection(myRay);
+        if (!bboxInters.isIntersected){
+            return Intersection();
+        }
+        else {
+            return bboxInters;
+        }
+    }
+    
     float a = p_a.x - p_b.x;
 	float b = p_a.y - p_b.y;
-	float c = p_a.z - p_b.z; 
+	float c = p_a.z - p_b.z;
     
-	float d = p_a.x - p_c.x; 
-	float e = p_a.y - p_c.y; 
-	float f = p_a.z - p_c.z; 
+	float d = p_a.x - p_c.x;
+	float e = p_a.y - p_c.y;
+	float f = p_a.z - p_c.z;
     
-	float g = (myRay.direction).x; 
+	float g = (myRay.direction).x;
 	float h = (myRay.direction).y;
 	float i = (myRay.direction).z;
     
@@ -95,9 +107,9 @@ Intersection Triangle::getIntersection(const Ray& myRay){
 	//plug t into the ray equation to get the point of intersection
     
 	//ray equation: point = p0 + td
-     myVector norm = getSurfaceNorm(myRay, t);
+    myVector norm = getSurfaceNorm(myRay, t);
     return Intersection(true, t, norm);
-
+    
 }
 
 myVector Triangle::getSurfaceNorm(const Ray& myRay, const float t){
@@ -107,3 +119,22 @@ myVector Triangle::getSurfaceNorm(const Ray& myRay, const float t){
     normal.normalize();
     return normal;
 }
+
+void Triangle::setBbox(const myVector& camdir){
+    
+    float max_x = fmax(fmax(p_a.x, p_b.x), p_c.x);
+    float max_y = fmax(fmax(p_a.y, p_b.y), p_c.y);
+    float max_z = fmax(fmax(p_a.z, p_b.z), p_c.z);
+    
+    float min_x = fmin(fmin(p_a.x, p_b.x), p_c.x);
+    float min_y = fmin(fmin(p_a.y, p_b.y), p_c.y);
+    float min_z = fmin(fmin(p_a.z, p_b.z), p_c.z);
+    
+    Point t_max_p = Point(max_x, max_y, max_z);
+    Point t_min_p = Point(min_x, min_y, min_z);
+    
+    bounds = Bbox(t_min_p, t_max_p, camdir);
+    hasBbox = true;
+    
+}
+

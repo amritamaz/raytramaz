@@ -64,6 +64,8 @@ int main (int argc, char *argv[])
     
     try{
         
+        bool withbbox = false;
+        
         /* * * * * * * * * * * *
          Read in the Scene File
          * * * * * * * * * * * */
@@ -80,10 +82,10 @@ int main (int argc, char *argv[])
             primsamp = atoi(argv[3]);
             shadsamp = atoi(argv[4]);
         }
-        else if (argc == 4){
+        else if (argc == 6){
             primsamp = atoi(argv[3]);
-            shadsamp = atoi(argv[3]);
-
+            shadsamp = atoi(argv[4]);
+            withbbox = true;
         }
         else {
             primsamp = 3;
@@ -96,18 +98,27 @@ int main (int argc, char *argv[])
         vector<Surface *> surfaces = vector<Surface *>();
         vector<Light *> lights = vector<Light *>();
         
-#ifdef IM_DEBUGGING
-        cout << "reading " << scenefile << endl;
-#endif
-        
+        if (withbbox){
+            cout << "bbox mode on" << endl;
+        }
         // parse the scene file, fill in the camera definition
         // and the list of surfaces (all spheres in this case!
         parseSceneFile(scenefile, mycam, surfaces, lights);
         
         Array2D<Imf::Rgba> p(mycam.ny, mycam.nx);
         assert(surfaces.size() != 0);
+        
+        for(std::vector<Surface *>::iterator s_it = surfaces.begin();
+            s_it != surfaces.end(); ++s_it){
+            Surface *surf = *s_it;
+            surf->setBbox((-1*(mycam.w)));
+            
+        }
+        
+        
+        
         //render the scene:
-        mycam.renderScene(surfaces, lights, p);
+        mycam.renderScene(surfaces, lights, p, withbbox);
         
         //save the image:
         mycam.writeImage(outputimg, &p[0][0]);
@@ -225,7 +236,7 @@ void parseSceneFile (const char *filnam, Camera &thecam, vector<Surface *> &s,
     vector< int > tris;
     vector< float > verts;
     Material lastMaterialLoaded;
-
+    
     
     while (! inFile.eof ()) {   // go through every line in file until finished
         
@@ -295,7 +306,7 @@ void parseSceneFile (const char *filnam, Camera &thecam, vector<Surface *> &s,
                 Triangle *ntri = new Triangle(p1,p2,p3);
                 ntri->setMaterial(lastMaterialLoaded);
                 s.push_back(ntri);
-
+                
             }  // triangle
                 break;
                 
@@ -309,9 +320,9 @@ void parseSceneFile (const char *filnam, Camera &thecam, vector<Surface *> &s,
                 Plane *nplane = new Plane(vect, d);
                 nplane->setMaterial(lastMaterialLoaded);
                 s.push_back(nplane);
-
+                
             }  // plane
-                          // plane with normal n and scalar value d: p nx ny nz d
+               // plane with normal n and scalar value d: p nx ny nz d
                 break;
                 
                 //
@@ -351,7 +362,7 @@ void parseSceneFile (const char *filnam, Camera &thecam, vector<Surface *> &s,
                 // a directional light with direction vx vy vz and color & intensity coded as l d vx vy vz r g b
                 // the ambient light (there will be, at most, only one of these): l ar g b
                 Light *nlight;
-
+                
                 switch (line[2]) {
                         
                     case 'p':   // point light
@@ -368,13 +379,13 @@ void parseSceneFile (const char *filnam, Camera &thecam, vector<Surface *> &s,
                         
                     case 'd':   // directional light
                     {
-                         vx = getTokenAsFloat (line, 2);
-                         vy = getTokenAsFloat (line, 3);
-                         vz = getTokenAsFloat (line, 4);
+                        vx = getTokenAsFloat (line, 2);
+                        vy = getTokenAsFloat (line, 3);
+                        vz = getTokenAsFloat (line, 4);
                         float lr = getTokenAsFloat (line, 5);
                         float lg = getTokenAsFloat (line, 6);
                         float lb = getTokenAsFloat (line, 7);
-
+                        
                         myVector litvec = myVector(vx, vy, vz);
                         nlight = new Light(2, litvec, lr, lg, lb);
                     }
@@ -391,28 +402,28 @@ void parseSceneFile (const char *filnam, Camera &thecam, vector<Surface *> &s,
                         
                     case 's':
                     {
-                         x = getTokenAsFloat (line, 2);
-                         y = getTokenAsFloat (line, 3);
-                         z = getTokenAsFloat (line, 4);
-                         vx = getTokenAsFloat (line, 5);
-                         vy = getTokenAsFloat (line, 6);
-                         vz = getTokenAsFloat (line, 7);
+                        x = getTokenAsFloat (line, 2);
+                        y = getTokenAsFloat (line, 3);
+                        z = getTokenAsFloat (line, 4);
+                        vx = getTokenAsFloat (line, 5);
+                        vy = getTokenAsFloat (line, 6);
+                        vz = getTokenAsFloat (line, 7);
                         
                         myVector litvec = myVector(vx, vy, vz);
-
+                        
                         float ux = getTokenAsFloat (line, 8);
                         float uy = getTokenAsFloat (line, 9);
                         float uz = getTokenAsFloat (line, 10);
                         
                         myVector udirVect = myVector(ux, uy, uz);
-
+                        
                         float len = getTokenAsFloat (line, 11);
                         r = getTokenAsFloat (line, 12);
                         float g = getTokenAsFloat (line, 13);
                         float b = getTokenAsFloat(line, 14);
                         
                         nlight = new Light(4, x,y,z, litvec, udirVect, len, r, g, b);
-
+                        
                     }
                         break;
                 }
@@ -437,9 +448,9 @@ void parseSceneFile (const char *filnam, Camera &thecam, vector<Surface *> &s,
                 m.ig = getTokenAsFloat (line, 9);
                 m.ib = getTokenAsFloat (line, 10);
                 lastMaterialLoaded = m;
-
+                
             }   // material
-
+                
                 
                 break;
                 

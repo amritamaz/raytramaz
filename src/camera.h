@@ -16,6 +16,7 @@
 #include <ImfMatrixAttribute.h>
 #include <ImfArray.h>
 #include <vector>
+#include <cstdlib>
 
 using namespace Imf;
 using namespace Imath;
@@ -37,7 +38,7 @@ class Light;
 class Camera {
     
     int raysamps, shadowsamps, raysampsqrd, shadsampsqrd;
-
+    
     
 public:
     Point eye;
@@ -76,12 +77,12 @@ public:
     
     Ray makeRay(float i, float j) const;           // primary ray generation function
     
-    void renderScene(std::vector<Surface *> surfaces, std::vector<Light *> lights, Array2D<Imf::Rgba> &pixels);
+    void renderScene(std::vector<Surface *> surfaces, std::vector<Light *> lights, Array2D<Imf::Rgba> &pixels, bool useBbox);
     
     void writeImage(char* filename,const Imf::Rgba *pixels);
     
-    Rgb L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_type, Light lite, std::vector<Light *> lights, std::vector<Surface *> surfaces);
-
+    Rgb L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_type, Light lite, std::vector<Light *> lights, std::vector<Surface *> surfaces, bool useBbox);
+    
 };
 
 

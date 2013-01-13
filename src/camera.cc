@@ -57,7 +57,12 @@ Camera::Camera(const float x, const float y, const float z,
     raysamps = ps;
     shadowsamps = ss;
     raysampsqrd = raysamps*raysamps;
-    shadsampsqrd = shadowsamps*shadowsamps;
+    if (shadowsamps > 1){
+        shadsampsqrd = shadowsamps*shadowsamps;
+    }
+    else {
+        shadsampsqrd = 2;
+    }
     
     // set up camera frame
     myVector direction = myVector(vx, vy, vz);
@@ -163,7 +168,8 @@ Ray Camera::makeRay(float i, float j) const{
 
 void Camera::renderScene(std::vector<Surface *> surfaces,
                          std::vector<Light *> lights,
-                         Array2D<Imf::Rgba> &pixels){
+                         Array2D<Imf::Rgba> &pixels,
+                         bool useBbox){
     
     std::cout << "rendering" << std::flush;
     int printProgress = ny * nx / 10.0;
@@ -184,7 +190,7 @@ void Camera::renderScene(std::vector<Surface *> surfaces,
             
             if (raysamps == 1){
                 Ray primRay = makeRay(x,y); //make primary ray through pixel
-                current = L(primRay, 0, INFINITY, 5, 0, *lights.front(), lights, surfaces);
+                current = L(primRay, 0, INFINITY, 5, 0, *lights.front(), lights, surfaces, useBbox);
                 
             }
             
@@ -201,7 +207,7 @@ void Camera::renderScene(std::vector<Surface *> surfaces,
                         temp_x = x + i_offset;
                         temp_y = y + j_offset;
                         Ray primRay = makeRay(temp_x,temp_y); //make primary ray through pixel
-                        current = current + L(primRay, 0, INFINITY, 3, 0, *lights.front(), lights, surfaces);
+                        current = current + L(primRay, 0, INFINITY, 3, 0, *lights.front(), lights, surfaces, useBbox);
                     }
                 }
                 
@@ -224,8 +230,8 @@ void Camera::renderScene(std::vector<Surface *> surfaces,
     
 }
 
-Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_type, Light lite, std::vector<Light *> lights, std::vector<Surface *> surfaces){
-    
+Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_type, Light lite, std::vector<Light *> lights, std::vector<Surface *> surfaces, bool useBbox){
+        
     Rgb zero_rgb = Rgb();
     Rgb current_rgb = Rgb();
     Rgb shadow_col = Rgb();
@@ -248,7 +254,7 @@ Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_
             s_it != surfaces.end(); ++s_it){
             Surface *surf = *s_it;
             
-            Intersection curr = surf->getIntersection(in_ray);
+            Intersection curr = surf->getIntersection(in_ray, useBbox);
             if (curr.isIntersected) {
                 //check to see if it's before or after the light
                 
@@ -275,7 +281,7 @@ Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_
         s_it != surfaces.end(); ++s_it){
         Surface *surf = *s_it;
         
-        Intersection curr = surf->getIntersection(in_ray);
+        Intersection curr = surf->getIntersection(in_ray, useBbox);
         if (curr.isIntersected) {
             if (curr.t < max_t){
                 if (curr.t > .00001){
@@ -332,7 +338,7 @@ Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_
             
             t_light = (lightSource.x - (s_ray.origin).x)/((s_ray.direction).x);
             
-            shadow_col = L(s_ray, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces);
+            shadow_col = L(s_ray, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces, useBbox);
             
             if ((shadow_col.r == 0) && (shadow_col.g == 0) && (shadow_col.b == 0)){
                 inShadow = true;
@@ -366,7 +372,7 @@ Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_
                 
                 Rgb temp_shadcol = Rgb();
                 
-                temp_shadcol = L(s_ray, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces);
+                temp_shadcol = L(s_ray, 0.0001, t_light, 1, 1, *cur_lite, lights, surfaces, useBbox);
                 
                 if ((temp_shadcol.r == 0)
                     && (temp_shadcol.g == 0) && (temp_shadcol.b == 0)){
@@ -544,12 +550,11 @@ Rgb Camera::L (Ray in_ray, float min_t, float max_t, int recurse_limit, int ray_
         
         ref_ray = Ray(intersP, refl_direction);
         //compute reflected ray
-        Rgb reflect_rgb = L(ref_ray, .0001, INFINITY, recurse_limit - 1, 0, lite, lights, surfaces);
+        Rgb reflect_rgb = L(ref_ray, .0001, INFINITY, recurse_limit - 1, 0, lite, lights, surfaces, useBbox);
         Rgb final_rgb = Rgb();
         final_rgb.r = current_rgb.r + (hitSurface.matInfo.ir)*(reflect_rgb.r);
         final_rgb.g = current_rgb.g + (hitSurface.matInfo.ig)*(reflect_rgb.g);
         final_rgb.b = current_rgb.b + (hitSurface.matInfo.ib)*(reflect_rgb.b);
-        
         
         return final_rgb;
     }

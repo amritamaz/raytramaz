@@ -20,7 +20,7 @@ Light::Light(float type, float lx, float ly, float lz, float lr, float lg, float
     x = lx;
     y = ly;
     z = lz;
-
+    
 }
 
 
@@ -70,7 +70,7 @@ Light::Light(const Light& l){
             y = l.y;
             z = l.z;
         }
-        break;
+            break;
             
         case 2:{
             r = l.r;
@@ -78,13 +78,13 @@ Light::Light(const Light& l){
             b = l.b;
             litVec = l.litVec;
         }
-        break;
+            break;
             
         case 3:{
             r = l.r;
             g = l.g;
             b = l.b;
-
+            
         }
             break;
     }

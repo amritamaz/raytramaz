@@ -15,10 +15,12 @@
 #include "point.h"
 #include "ray.h"
 #include "material.h"
+#include "bbox.h"
 
 class myVector;
 class Intersection;
 class Ray;
+class Bbox;
 
 class Surface {
     
@@ -26,6 +28,8 @@ class Surface {
 public:
     
     Material matInfo;
+    Bbox bounds;
+    bool hasBbox;
     
     /* * * * * * * * * * * *
      Constructors
@@ -35,8 +39,12 @@ public:
     Surface(const Surface& p);                             // copy constructor
     ~Surface();													// destructor
     
-    virtual Intersection getIntersection(const Ray& myRay){
+    virtual Intersection getIntersection(const Ray& myRay, bool withBbox){
         return Intersection();
+    }
+    
+    virtual void setBbox(const myVector& camdir){
+        hasBbox = false;
     }
     
     void setMaterial(const Material& myMat){

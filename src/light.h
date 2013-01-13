@@ -19,19 +19,19 @@
 
 class Light{
     
-
-public: 
+    
+public:
     float type, r, g, b, x, y, z;
     // type: 1 = point light, 2 = directional, 3 = ambient, 4 = area
     myVector litVec, uVec;
     
     // for an area light source
     float length;
-
+    
     /* * * * * * * * * * * *
      Basic Constructors
      * * * * * * * * * * * */
-
+    
     Light();
     Light(float type, float lx, float ly, float lz, float lr, float lg, float lb); // point light source
     Light(float type, myVector lvec, float lr, float lg, float lb); // directional light source

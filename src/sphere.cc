@@ -39,8 +39,65 @@ Sphere::Sphere(const Sphere& p)
 Sphere::~Sphere()
 {}
 
+void Sphere::setBbox(const myVector& camdir){
+    myVector u, v, w;
+    w = -camdir;
+    w.normalize();
+    
+    if (1.0 - fabs (w.y) < .0001) {
+        // camera is pointing up or down - make an arbitrary
+        // right-handed coordinate system:
+        u = myVector(1.0, 0.0, 0.0);
+        v = cross(w,u);
+    }
+    else {
+        myVector up = myVector(0., 1., 0.);
+        u = myVector(cross(up, w));
+        v = myVector(cross(w, u));
+    }
+    
+    u.normalize();
+    v.normalize();
+    
+    Point px1, px2, py1, py2, pz1, pz2;
+    
+    px1 = orig + u*rad;
+    px2 = orig + (-1*u)*rad;
+    py1 = orig + v*rad;
+    py2 = orig + (-1*v)*rad;
+    pz1 = orig + camdir*rad;
+    pz2 = orig + w*rad;
+    
+    float xmax = fmax(fmax(fmax(px1.x, px2.x),fmax(py1.x, py2.x)),fmax(pz1.x, pz2.x));
+    float xmin = fmin(fmin(fmin(px1.x, px2.x),fmin(py1.x, py2.x)),fmin(pz1.x, pz2.x));
+    
+    float ymax = fmax(fmax(fmax(px1.y, px2.y),fmax(py1.y, py2.y)),fmax(pz1.y, pz2.y));
+    float ymin = fmin(fmin(fmin(px1.y, px2.y),fmin(py1.y, py2.y)),fmin(pz1.y, pz2.y));
+    
+    float zmax = fmax(fmax(fmax(px1.z, px2.z),fmax(py1.z, py2.z)),fmax(pz1.z, pz2.z));
+    float zmin = fmin(fmin(fmin(px1.z, px2.z),fmin(py1.z, py2.z)),fmin(pz1.z, pz2.z));
+    
+    Point t_max_p = Point(xmax, ymax, zmax);
+    Point t_min_p = Point(xmin, ymin, zmin);
+    
+    bounds = Bbox(t_min_p, t_max_p, camdir);
+    hasBbox = true;
+    
+}
 
-Intersection Sphere::getIntersection(const Ray &myRay){
+
+Intersection Sphere::getIntersection(const Ray &myRay, bool withBbox){
+    
+    if (withBbox && hasBbox){
+        Intersection bboxInters = bounds.getIntersection(myRay);
+        if (!bboxInters.isIntersected){
+            return Intersection();
+        }
+        else {
+            return bboxInters;
+        }
+    }
+    
     myVector e_c = myVector(myRay.origin, orig);
     myVector d = myRay.direction;
     float d_dot_d = dot(d, d);

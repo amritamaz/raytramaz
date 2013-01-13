@@ -34,7 +34,7 @@ public:
     Rgb operator- () const;                               // unary minus
     
     Rgb operator+ (const Rgb& p);                    // adding two points
-    
+        
     Rgb operator- (const Rgb& p);     // subtracting one point from another
 	
     Rgb operator* (const float a) const;         // multiplication by a float

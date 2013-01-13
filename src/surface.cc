@@ -12,10 +12,10 @@
 Surface::Surface(){
 }// default constructor
 
-Surface::Surface(const Surface& p){
-}
+Surface::Surface(const Surface& p)
+:matInfo(p.matInfo), bounds(p.bounds), hasBbox(p.hasBbox)
+{}
 
-// copy constructor
 Surface::~Surface(){}										// destructor
 
 
