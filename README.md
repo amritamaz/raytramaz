@@ -9,7 +9,6 @@ A raytracer from scratch in C++. A continuation of the raytracer project develop
 + spheres, triangles, and planes
 + point, ambient, and area light sources (w/ soft shadows)
 + jittered monte-carlo antialiasing
-+ area lights/soft shadows
 + triangulated meshes (obj file format)
 + axis-aligned bounding boxes for acceleration
 + support models for diffuse and reflective materials
